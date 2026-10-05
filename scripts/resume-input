@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Workaround: swaylock drops the first key after resume on NVIDIA laptops.
+
+nvidia-sleep.sh switches to VT 63 around suspend. Back on sway's VT, wlroots
+only re-adds the keyboard on the next input event, so that first key never
+reaches swaylock (seen on sway 1.12 / wlroots 0.20).
+
+Plugging in an empty virtual device for a moment is such an event. It sends
+no keys. It needs /dev/uinput writable by the logged-in user, which udev
+rules from kdeconnect or the Logitech unifying package grant; without
+one, this does nothing.
+"""
+
+import fcntl
+import os
+import struct
+import time
+
+UI_SET_EVBIT = 0x40045564
+UI_SET_KEYBIT = 0x40045565
+UI_DEV_SETUP = 0x405C5503
+UI_DEV_CREATE = 0x5501
+EV_KEY = 1
+KEY_UNKNOWN = 240
+BUS_VIRTUAL = 6
+
+# wait (up to 10 s) until our VT is active again, then for sway to resume input
+vt = os.environ.get("XDG_VTNR")
+for _ in range(100):
+    with open("/sys/class/tty/tty0/active") as f:
+        if not vt or f.read().strip() == f"tty{vt}":
+            break
+    time.sleep(0.1)
+time.sleep(0.5)
+
+try:
+    fd = os.open("/dev/uinput", os.O_WRONLY)
+except OSError:
+    raise SystemExit
+fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+fcntl.ioctl(fd, UI_SET_KEYBIT, KEY_UNKNOWN)
+fcntl.ioctl(fd, UI_DEV_SETUP, struct.pack("4H80sI", BUS_VIRTUAL, 0, 0, 0, b"resume-input", 0))
+fcntl.ioctl(fd, UI_DEV_CREATE)
+time.sleep(0.5)
+os.close(fd)  # unplugs the device

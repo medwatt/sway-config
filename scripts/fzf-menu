@@ -1,0 +1,63 @@
+#!/bin/bash
+# Search my files and do something with the one I pick.
+#   enter      open it
+#   alt-enter  choose which program opens it
+#   ctrl-y     copy its path
+#   ctrl-o     show it in dolphin
+
+trap "" HUP
+
+dirs=(
+    ~/circuit
+    ~/coding
+    ~/Zotero
+    ~/Writing
+    ~/Documents
+    ~/jupyter
+    ~/Downloads
+    ~/Videos
+)
+
+open_with() {
+    # every program registered for this file type, same list dolphin shows
+    app=$(gio mime "$(xdg-mime query filetype "$1")" | grep $'^\t' | tr -d '\t' | sort -u | fzf) || exit
+    setsid -f gtk-launch "$app" "$1" </dev/null >/dev/null 2>&1
+}
+
+show_in_dolphin() {
+    setsid -f dolphin --select "$1" </dev/null >/dev/null 2>&1
+    # on wayland dolphin can't raise its own window, so focus it ourselves
+    sleep 0.4
+    if [ -n "$SWAYSOCK" ]; then
+        swaymsg '[app_id="org.kde.dolphin"] focus' >/dev/null
+    else
+        i3-msg '[class="(?i)dolphin"] focus' >/dev/null
+    fi
+}
+
+copy_path() {
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        printf %s "$1" | wl-copy
+    else
+        printf %s "$1" | xclip -selection clipboard
+    fi
+}
+
+case "$1" in
+    --copy) copy_path "$2"; exit ;;
+    --open-with) open_with "$2"; exit ;;
+    --dolphin) show_in_dolphin "$2"; exit ;;
+esac
+
+# fd gives up if any folder is missing, so only pass the ones that exist
+search=()
+for d in "${dirs[@]}"; do
+    [ -d "$d" ] && search+=("$d")
+done
+
+fd --type f . "${search[@]}" | fzf -i --delimiter / --with-nth -1 \
+    --header 'enter open · alt-enter open with · ctrl-y copy path · ctrl-o dolphin' \
+    --bind 'enter:become(setsid -f xdg-open {} </dev/null >/dev/null 2>&1)' \
+    --bind "alt-enter:become($0 --open-with {})" \
+    --bind "ctrl-y:execute-silent($0 --copy {})+abort" \
+    --bind "ctrl-o:become($0 --dolphin {})"

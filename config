@@ -1,0 +1,301 @@
+# variables <<<
+
+# modifier keys
+set $alt      Mod1
+set $ctrl     Ctrl
+set $shift    Shift
+set $super    Mod4
+
+# window title font and border width
+set $font         pango:Source Sans Pro, Semibold 11
+set $border_size  3
+
+# common programs
+set $terminal          kitty --single-instance
+set $term_app          $terminal --class
+set $browser           firefox
+set $locker            swaylock -f -c 073642 --indicator-idle-visible
+# >>>
+
+# inputs and outputs <<<
+
+input type:keyboard xkb_layout us
+input type:touchpad natural_scroll enabled
+input type:touchpad tap enabled
+
+# laptop panel: DisplayCAL profile for this panel (NV156FHM-N61).
+# sway's own icc support has no effect yet (sway issue #9129), so the
+# icc profile is loaded by tools/wl-vcgt instead.
+# Swap the two lines once sway fixes it.
+# output eDP-1 color_profile icc ~/.config/sway/assets/NV156FHM-N61.icc
+exec ~/.config/sway/scripts/run-unit wl-vcgt ~/.config/sway/tools/wl-vcgt/wl-vcgt --output eDP-1 ~/.config/sway/assets/NV156FHM-N61.icc
+
+# pin the laptop at 0,0; unconfigured outputs are auto-placed to its right.
+# Super+F7 (scripts/display-mode) saves per-monitor placements to the include.
+output eDP-1 pos 0 0
+include ~/.local/state/sway/outputs
+
+# wallpaper
+output * bg ~/.config/sway/assets/wallpaper.jpg fill
+
+# >>>
+
+# sway settings <<<
+
+default_border pixel $border_size
+default_floating_border pixel $border_size
+for_window [floating] border normal
+
+font $font
+
+floating_modifier $super normal
+
+focus_on_window_activation smart
+
+gaps inner 3
+gaps outer 3
+
+# no title bar on a tabbed/stacked container holding a single window
+hide_edge_borders --i3 none
+
+# no border around a window that's alone on its workspace
+smart_borders on
+
+focus_follows_mouse yes
+
+# window colors: doom-one (bar: waybar/style.css)
+#                       border  bg      text    indicator child_border
+client.focused          #716d94 #716d94 #dfdfdf #5699af   #716d94
+client.focused_inactive #2a2e32 #2a2e32 #bbc2cf #3f444a   #3f444a
+client.unfocused        #2a2e32 #2a2e32 #73797e #3f444a   #3f444a
+client.urgent           #ff5452 #ff5452 #1d2021 #ff5452   #ff5452
+
+# >>>
+
+# startup <<<
+
+# Long-lived programs that must not die silently run as systemd user units,
+# through scripts/run-unit as unit sway-NAME: restarted if they die, logged with
+# journalctl --user -u sway-NAME. The others are started once with a plain exec.
+
+# share the session with systemd/dbus (screen-sharing portal), then start dunst
+# from its own unit, which needs that environment to reach the display
+exec dbus-update-activation-environment --systemd DISPLAY SWAYSOCK WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway && systemctl --user start dunst
+
+# clipboard history
+exec wl-paste --watch cliphist store
+
+# authentication agent
+exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+
+# bar on every monitor (unit sway-waybar; reload/restart: see the script)
+exec_always ~/.config/sway/scripts/start-waybar
+
+# window switcher on Super+Tab: other workspaces on this monitor.
+exec ~/.config/sway/alttab/sway-alttab-gui daemon --mode others --release-key super
+
+# lock after 10 min, screen off after 11, lock before suspend.
+# display-mode switches the externals off before sleep and restores them on wake
+# (after resume-input, which works around swaylock missing the first key).
+exec ~/.config/sway/scripts/run-unit swayidle swayidle -w \
+    timeout 600 '$locker' \
+    timeout 660 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
+    before-sleep '~/.config/sway/scripts/display-mode --before-sleep; $locker' \
+    after-resume '~/.config/sway/scripts/resume-input; ~/.config/sway/scripts/display-mode --after-resume'
+
+# workspace/app controller (controller/, unit sway-controller). It binds its
+# keys and sends the workspace rules from controller/config.py; reload drops
+# those, so it is restarted on every reload to send them again.
+exec_always ~/.config/sway/scripts/start-controller
+# >>>
+
+# workspaces <<<
+
+set $ws1  "1"
+set $ws2  "2"
+set $ws3  "3"
+set $ws4  "4"
+set $ws5  "5"
+set $ws6  "6"
+set $ws7  "7"
+set $ws8  "8"
+set $ws9  "9"
+
+# Which monitor each number opens on (MONITORS), and the named app workspaces
+# (A, D, E, ...) with their keys: controller/config.py
+# >>>
+
+# window rules <<<
+for_window [class="kcalc"] floating enable, move position center
+for_window [app_id="org.kde.kcalc"] floating enable, move position center
+for_window [class="URxvt"] floating enable, move position center
+
+# tabbed apps; apps with their own workspace: tabbed=True in controller/config.py
+for_window [class="kicad|KiCad"] layout tabbed
+for_window [class="ChessPuzzles|ChessPuzzlesBoardVision|ChessPuzzlesPgnViewer"] layout tabbed
+
+# cadence
+for_window [class="virtuoso"] floating enable, move position center
+for_window [class="viva"] floating enable, move position center
+for_window [class="libManager"] layout tabbed, move position center
+for_window [class="virtuoso" title="^.*Layout Suite|Visualization|Analysis|maestro|Virtuoso ADE Explorer Editing|Schematic Editor|Symbol Editor.*$"] floating disable
+for_window [class="viva" title="^.*Visualization.*$"] floating disable
+for_window [class="virtuoso" title="^.*spectre\.out$"] floating enable, move position 0 1000
+
+# python
+for_window [class="matplotlib"] floating enable, move position center
+for_window [title="^Figure\s+\d+$"] floating enable, move position center
+
+# don't lock or blank the screen while something is fullscreen,
+# or while a Zoom window is on screen
+for_window [app_id=".*"] inhibit_idle fullscreen
+for_window [class=".*"] inhibit_idle fullscreen
+for_window [app_id="^zoom$"] inhibit_idle visible
+for_window [class="^zoom$"] inhibit_idle visible
+
+# drop-down terminal (key: Super+grave below)
+for_window [app_id="scratch_term"] floating enable, resize set 1000 px 800 px, move position center, border pixel 5, move scratchpad, scratchpad show
+
+# floating kitty tools (keys: "floating tools" below; $term_app sets app_id)
+for_window [app_id="kitty_btop"] floating enable, resize set 800 800, move position center, border pixel 2
+for_window [app_id="kitty_fzf"] floating enable, resize set 1200 800, move position center, border pixel 2
+for_window [app_id="kitty_vid"] floating enable, resize set 1200 800, move position center, border pixel 2
+for_window [app_id="nvim_float"] floating enable, resize set 1200 300, move position center, border pixel 2
+
+# others
+for_window [title="Scid:\s.*$"] floating enable, move position center
+for_window [class="Tk"] floating enable
+
+# >>>
+
+# keybindings <<<
+
+# go to numbered workspace
+bindsym $super+1 workspace $ws1
+bindsym $super+2 workspace $ws2
+bindsym $super+3 workspace $ws3
+bindsym $super+4 workspace $ws4
+bindsym $super+5 workspace $ws5
+bindsym $super+6 workspace $ws6
+bindsym $super+7 workspace $ws7
+bindsym $super+8 workspace $ws8
+bindsym $super+9 workspace $ws9
+
+# move focused workspace between monitors
+bindsym $super+$ctrl+Right move workspace to output right
+bindsym $super+$ctrl+Left  move workspace to output left
+
+bindsym $super+comma workspace prev_on_output
+bindsym $super+period workspace next_on_output
+
+# change focus
+bindsym $super+Left   focus left
+bindsym $super+Down   focus down
+bindsym $super+Up     focus up
+bindsym $super+Right  focus right
+
+# move focused window
+bindsym $super+$shift+Left   move left
+bindsym $super+$shift+Down   move down
+bindsym $super+$shift+Up     move up
+bindsym $super+$shift+Right  move right
+
+# move focused window to numbered workspace
+bindsym $super+$shift+1 move container to workspace $ws1
+bindsym $super+$shift+2 move container to workspace $ws2
+bindsym $super+$shift+3 move container to workspace $ws3
+bindsym $super+$shift+4 move container to workspace $ws4
+bindsym $super+$shift+5 move container to workspace $ws5
+bindsym $super+$shift+6 move container to workspace $ws6
+bindsym $super+$shift+7 move container to workspace $ws7
+bindsym $super+$shift+8 move container to workspace $ws8
+bindsym $super+$shift+9 move container to workspace $ws9
+
+# close window
+bindsym $super+q kill
+
+# clipboard history
+bindsym $super+c exec cliphist list | rofi -dmenu -sync -case-smart -p clip | cliphist decode | wl-copy
+
+# window switcher (see startup)
+bindsym $super+Tab exec ~/.config/sway/alttab/sway-alttab-gui show
+
+# layout
+bindsym $super+$alt+t layout toggle tabbed split
+bindsym $super+$alt+f floating toggle
+bindsym $super+$alt+s sticky toggle
+bindsym $super+$alt+a focus parent
+bindsym $super+$alt+h splitv
+bindsym $super+$alt+v splith
+bindsym $super+f fullscreen toggle
+
+# reload config (sway has no in-place restart)
+bindsym $super+$shift+r reload
+bindsym $super+F5 exec ~/.config/sway/scripts/start-controller
+
+# programs
+bindsym $super+Return exec $terminal
+bindsym $super+b exec $browser
+bindsym $alt+space exec rofi -modi drun -show drun -show-icons -drun-match-fields name
+bindsym $super+$alt+n exec ~/.config/sway/scripts/neovim_terminal
+bindsym $super+$alt+y exec ~/.config/sway/scripts/md_to_tex.py
+bindsym $super+$alt+Home exec kwrite ~/Documents/my_address
+bindsym $super+$alt+i exec ~/.config/sway/scripts/window-name
+
+# drop-down terminal: show/hide it, or start it the first time (rule: window rules above)
+bindsym $super+grave exec swaymsg '[app_id="scratch_term"] scratchpad show' || $term_app scratch_term
+
+# do not disturb: pause/resume notifications; waybar shows a bell while paused
+bindsym $super+$alt+d exec dunstctl set-paused toggle && pkill -RTMIN+8 -x waybar
+
+# floating tools: btop, file search, video/course picker (rules: window rules above)
+bindsym $ctrl+Escape exec $term_app kitty_btop --title btop -e btop
+bindsym $super+slash exec $term_app kitty_fzf --title 'File Search' -e ~/.config/sway/scripts/fzf-menu
+bindsym $super+$shift+slash exec $term_app kitty_vid --title 'Video Search' -e ~/.config/sway/scripts/vid-menu
+
+# screenshots: region / full screen after 1s to clipboard, region in a floating window
+bindsym Print exec grim -g "$(slurp)" - | wl-copy -t image/png
+bindsym $shift+Print exec sleep 1 && grim - | wl-copy -t image/png
+bindsym $ctrl+Print exec ~/.config/sway/scripts/floating-screenshot
+
+# monitors: place, mirror, switch off (scripts/display-mode)
+bindsym $super+F7 exec ~/.config/sway/scripts/display-mode
+
+# volume and brightness
+bindsym XF86AudioRaiseVolume  exec wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume  exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute         exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindsym XF86AudioMicMute      exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+bindsym XF86MonBrightnessUp   exec brightnessctl set 5%+
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+# >>>
+
+# modes <<<
+
+mode "resize" {
+    bindsym Left  resize shrink width  2 px or 2 ppt
+    bindsym Down  resize grow height   2 px or 2 ppt
+    bindsym Up    resize shrink height 2 px or 2 ppt
+    bindsym Right resize grow width    2 px or 2 ppt
+
+    bindsym Return   mode "default"
+    bindsym Escape   mode "default"
+    bindsym $super+r mode "default"
+}
+bindsym $super+r mode "resize"
+
+# swayidle locks before suspend/hibernate
+set $mode_system System Mode: lock [l], logout [e], suspend [s], hibernate [h], reboot [r], shutdown [x]
+mode "$mode_system" {
+    bindsym l exec $locker,                    mode "default"
+    bindsym e exec swaymsg exit,               mode "default"
+    bindsym s exec systemctl suspend,          mode "default"
+    bindsym h exec systemctl hibernate,        mode "default"
+    bindsym r exec systemctl reboot,           mode "default"
+    bindsym x exec systemctl poweroff -i,      mode "default"
+
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $super+Escape mode "$mode_system"
+# >>>

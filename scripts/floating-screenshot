@@ -1,0 +1,4 @@
+#!/bin/sh
+# Ctrl+Print: grab a region and show it in a floating feh window
+f=$(mktemp /tmp/screenshot_XXXXXX.png)
+grim -g "$(slurp)" "$f" && exec feh "$f"

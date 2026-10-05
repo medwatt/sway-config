@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pick a course/series directory, play everything under it in order in smplayer.
+
+trap "" HUP
+
+# register the places to scan here
+VIDEO_ROOTS=(~/Videos)
+
+dir=$(fd -t d . "${VIDEO_ROOTS[@]}" -a |
+    fzf --scheme=path --query="$*" --reverse --prompt='vid> ') || exit
+
+mapfile -t files < <(fd -e mp4 -e mkv -e m4v -e webm . "$dir" -a | sort -V)
+if ((${#files[@]} == 0)); then
+    echo "no videos under $dir" >&2
+    read -rs -n1 -p "press any key"
+    exit 1
+fi
+
+# detached: the kitty window closes the moment we return
+setsid smplayer "${files[@]}" >/dev/null 2>&1 </dev/null &

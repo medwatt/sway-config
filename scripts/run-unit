@@ -1,0 +1,20 @@
+#!/bin/sh
+# Run a long-lived program as a temporary systemd user unit named sway-NAME:
+#   run-unit NAME COMMAND [ARGS...]
+#
+# systemd restarts it if it dies, logs it (journalctl --user -u sway-NAME), and
+# `systemctl --user stop sway-NAME` stops it for good. An old instance is
+# replaced. The unit exists only while it runs; there's no unit file. The
+# prefix keeps it clear of units that packages ship (waybar has one).
+#
+# KillMode=process: stopping the unit stops only the program, not what it
+# started; e.g. the swaylock that swayidle started must survive a swayidle restart.
+
+unit=sway-$1
+shift
+systemctl --user stop "$unit" 2>/dev/null
+exec systemd-run --user --unit="$unit" --collect \
+    -p Restart=always -p KillMode=process \
+    --setenv=WAYLAND_DISPLAY --setenv=SWAYSOCK --setenv=XDG_VTNR \
+    --setenv=PYTHONUNBUFFERED=1 \
+    "$@"

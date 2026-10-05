@@ -1,0 +1,20 @@
+#!/bin/sh
+# Like `xprop` on X11: click a window, get the name to use in window rules and
+# controller/config.py. Prints it and copies it to the clipboard.
+#   app_id = native Wayland window, class = X11 window (XWayland)
+
+name=$(swaymsg -t get_tree | python3 -c '
+import json, sys
+def walk(n):
+    if n.get("pid") and n.get("visible"):
+        r = n["rect"]
+        name = n.get("app_id") or "class=" + (n.get("window_properties") or {}).get("class", "?")
+        print("%(x)d,%(y)d %(width)dx%(height)d " % r + name)
+    for c in n.get("nodes", []) + n.get("floating_nodes", []):
+        walk(c)
+walk(json.load(sys.stdin))
+' | slurp -r -f %l) || exit 1
+
+echo "$name"
+printf %s "${name#class=}" | wl-copy
+notify-send "Window name (copied)" "$name"

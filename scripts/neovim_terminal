@@ -1,0 +1,32 @@
+#!/bin/bash
+# Write something in a small neovim window, then paste it into the window I was in.
+# In inkscape the text is latex and gets pasted as an svg.
+
+# true if the focused window's app_id matches $1
+focused_is() {
+    swaymsg "[con_id=__focused__ app_id=\"$1\"] nop" >/dev/null 2>&1
+}
+
+# opens in the running kitty (fast) and blocks until neovim is closed,
+# then focuses the window I started from again so the paste lands there
+edit() {
+    swaymsg 'mark --add paste_back' >/dev/null
+    wl-copy --clear
+    NVIM_APPNAME=neovim_float kitty --single-instance --wait-for-single-instance-window-close --class nvim_float -e nvim -c startinsert "$1"
+    swaymsg '[con_mark="paste_back"] focus' >/dev/null
+    swaymsg unmark paste_back >/dev/null
+}
+
+if focused_is '^org.inkscape'; then
+    edit /tmp/nvim-term.tex
+    python3 "$(dirname "$0")/latex_script.py" /tmp/nvim-term.tex
+    wtype -M ctrl v -m ctrl
+elif focused_is 'kitty|foot|alacritty|konsole'; then
+    edit /tmp/nvim-term.sh
+    wl-copy --trim-newline < /tmp/nvim-term.sh
+    wtype -M ctrl -M shift v -m shift -m ctrl
+else
+    edit /tmp/nvim-term.txt
+    wl-copy --trim-newline < /tmp/nvim-term.txt
+    wtype -M ctrl v -m ctrl
+fi

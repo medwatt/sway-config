@@ -1,0 +1,5 @@
+#!/bin/sh
+# Start (or restart, Super+F5) the workspace/app controller in controller/.
+# Logs: journalctl --user -u sway-controller
+
+exec ~/.config/sway/scripts/run-unit controller ~/.config/sway/controller/main.py

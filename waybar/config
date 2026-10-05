@@ -1,0 +1,61 @@
+// Waybar config (started from ~/.config/sway/config).
+// Laptop panel gets the full bar, every other monitor a slim one.
+// Module settings live in modules.json. Apply edits with Super+Shift+r.
+[
+    {
+        "output": "eDP-1",
+        "layer": "top",
+        "position": "top",
+        "height": 30,
+        "margin-top": 2,
+        "margin-left": 6,
+        "margin-right": 6,
+        "spacing": 6,
+        "modules-left": [
+            "sway/workspaces",
+            "sway/mode"
+        ],
+        "modules-center": [
+            "sway/window"
+        ],
+        "modules-right": [
+            "custom/dnd",
+            "network",
+            "pulseaudio",
+            "memory",
+            "cpu",
+            "temperature",
+            "battery",
+            "clock",
+            "tray"
+        ],
+        "include": [
+            "~/.config/sway/waybar/modules.json"
+        ]
+    },
+    {
+        "output": "!eDP-1",
+        "layer": "top",
+        "position": "top",
+        "height": 30,
+        "margin-top": 2,
+        "margin-left": 6,
+        "margin-right": 6,
+        "spacing": 6,
+        "modules-left": [
+            "sway/workspaces",
+            "sway/mode"
+        ],
+        "modules-center": [
+            "sway/window"
+        ],
+        "modules-right": [
+            "custom/dnd",
+            "pulseaudio",
+            "clock"
+        ],
+        "include": [
+            "~/.config/sway/waybar/modules.json"
+        ]
+    }
+]

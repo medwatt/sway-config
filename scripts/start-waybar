@@ -1,0 +1,9 @@
+#!/bin/sh
+# Bar on every monitor. Super+Shift+r reloads its config/style, or starts it if
+# it isn't running. systemd restarts it if it dies (waybar 0.15 sometimes
+# crashes when outputs change right after resume).
+# Logs: journalctl --user -u sway-waybar. Stop it for good: systemctl --user stop sway-waybar
+
+systemctl --user kill -s USR2 sway-waybar 2>/dev/null && exit
+exec ~/.config/sway/scripts/run-unit waybar \
+    waybar -c ~/.config/sway/waybar/config -s ~/.config/sway/waybar/style.css

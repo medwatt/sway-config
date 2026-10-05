@@ -1,0 +1,97 @@
+// Module settings shared by both bars in ./config
+{
+    "sway/workspaces": {
+        "disable-scroll": true
+    },
+    "sway/mode": {
+        "format": "󰩨 {}"
+    },
+    "sway/window": {
+        "max-length": 30,
+        "tooltip": false
+    },
+    "network": {
+        "interval": 3,
+        "format-wifi": "<span color='#5699af'>󰤨</span>  {signalStrength:>3}%  <span color='#5699af'>󰓅</span> {bandwidthTotalBytes:>10}",
+        "format-ethernet": "<span color='#5699af'>󰈀</span>  <span color='#5699af'>󰓅</span> {bandwidthTotalBytes:>10}",
+        "format-disconnected": "󰤭  offline",
+        "tooltip-format": "{essid} ({ifname}): {ipaddr}/{cidr}\n↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"
+    },
+    // click: mute, scroll: volume
+    "pulseaudio": {
+        "scroll-step": 5,
+        "max-volume": 150,
+        "format": "<span color='#5699af'>{icon}</span>  {volume}%",
+        "format-muted": "󰖁  muted",
+        "format-icons": {
+            "default": [
+                "󰕿",
+                "󰖀",
+                "󰕾"
+            ],
+            "headphone": "󰋋"
+        },
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "tooltip-format": "{desc}"
+    },
+    "memory": {
+        "interval": 5,
+        "format": "<span color='#5699af'>󰍛</span>  {percentage}%",
+        "states": {
+            "warning": 70,
+            "critical": 90
+        }
+    },
+    "cpu": {
+        "interval": 5,
+        "format": "<span color='#5699af'>󰻠</span>  {usage}%",
+        "states": {
+            "warning": 70,
+            "critical": 90
+        }
+    },
+    "temperature": {
+        "interval": 5,
+        "critical-threshold": 80,
+        "format": "<span color='#5699af'>󰔏</span>  {temperatureC}°C"
+    },
+    "battery": {
+        "interval": 10,
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "<span color='#5699af'>{icon}</span>  {capacity}%",
+        "format-charging": "<span color='#2ecc71'>󰂄</span>  {capacity}%",
+        "format-plugged": "<span color='#2ecc71'>󰚥</span>  {capacity}%",
+        // on battery: no hardcoded color so the CSS pill styling shows through
+        "format-discharging": "{icon}  {capacity}%",
+        "format-icons": [
+            "󰁺",
+            "󰁼",
+            "󰁾",
+            "󰂀",
+            "󰁹"
+        ],
+        "tooltip-format": "{timeTo}"
+    },
+    "tray": {
+        "icon-size": 16,
+        "spacing": 8
+    },
+    // do not disturb (Super+Alt+d or click): shown only while notifications are paused
+    "custom/dnd": {
+        "exec": "dunstctl is-paused | grep -q true && echo '󰂛  do not disturb' || true",
+        "interval": "once",
+        "signal": 8,
+        "on-click": "dunstctl set-paused toggle && pkill -RTMIN+8 -x waybar",
+        "tooltip": false
+    },
+    // click to switch between time and date
+    "clock": {
+        "interval": 60,
+        "format": "󰥔  {:%I:%M %p}",
+        "format-alt": "󰃭  {:%a, %b %d}",
+        "tooltip": false
+    }
+}

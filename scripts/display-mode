@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""Super+F7: place, mirror or switch off monitors. Also run by swayidle around sleep.
+
+Placements are saved per monitor (make model serial) to STATE, which ../config
+includes, so sway re-applies them whenever that monitor is plugged in, on any port.
+Mirror and the "only" modes last until the next choice.
+"""
+
+import json
+import os
+import subprocess
+import sys
+
+LAPTOP = "eDP-1"
+STATE = os.path.expanduser("~/.local/state/sway/outputs")
+SESSION = os.path.expanduser("~/.local/state/sway/display-session.json")
+
+
+def sway(cmd):
+    subprocess.run(["swaymsg", cmd], stdout=subprocess.DEVNULL)
+
+
+def outputs():
+    out = subprocess.run(["swaymsg", "-rt", "get_outputs"], capture_output=True, text=True).stdout
+    return {o["name"]: o for o in json.loads(out)}
+
+
+def session():
+    try:
+        with open(SESSION) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_session(data):
+    os.makedirs(os.path.dirname(SESSION), exist_ok=True)
+    with open(SESSION, "w") as f:
+        json.dump(data, f)
+
+
+def ident(out):
+    return f"{out['make']} {out['model']} {out['serial']}"
+
+
+def before_sleep():
+    """Remember which monitors are off, then leave only the laptop screen on:
+    a monitor unplugged while asleep otherwise stays lit on the NVIDIA GPU and
+    blocks the next one."""
+    data = session()
+    outs = outputs()
+    # remembered by monitor, not port: a different monitor on that port counts as new
+    data["off"] = [ident(out) for out in outs.values() if not out["active"]]
+    # by name, not "output * disable": sway keeps that for the whole session, so a
+    # monitor showing up late after wake would come up disabled
+    data["slept"] = [name for name, out in outs.items() if name != LAPTOP and out["active"]]
+    save_session(data)
+    subprocess.run(["pkill", "-x", "wl-mirror"])
+    sway(f"output {LAPTOP} enable")
+    for name in data["slept"]:
+        sway(f"output {name} disable")
+
+
+def after_resume():
+    """Monitors switched off before sleep stay off; any other, e.g. one plugged in
+    while asleep, comes on."""
+    data = session()
+    off = set(data.get("off", []))
+    # sway stores this even while the port is still empty, so a monitor that is
+    # slow to come back after wake still comes up on
+    for name in data.get("slept", []):
+        sway(f"output {name} enable")
+    connected = outputs()
+    wanted = {name for name, out in connected.items() if ident(out) not in off} or {LAPTOP}
+    for name in connected:
+        sway(f"output {name} {'enable' if name in wanted else 'disable'}")
+    mirror = data.get("mirror")
+    if mirror in wanted and LAPTOP in wanted:
+        subprocess.Popen(
+            ["wl-mirror", "--fullscreen-output", mirror, LAPTOP], start_new_session=True
+        )
+
+
+def place(ext, lap, where):
+    """Centre ext beside/above the laptop (at 0,0), save it for next time, apply it now."""
+    e, l = ext["rect"], lap["rect"]
+    x, y = {
+        "right": (l["width"], (l["height"] - e["height"]) // 2),
+        "left": (-e["width"], (l["height"] - e["height"]) // 2),
+        "above": ((l["width"] - e["width"]) // 2, -e["height"]),
+    }[where]
+    monitor = f'"{ident(ext)}"'
+    try:
+        lines = [s for s in open(STATE).read().splitlines() if monitor not in s]
+    except FileNotFoundError:
+        lines = []
+    lines.append(f"output {monitor} pos {x} {y}")
+    os.makedirs(os.path.dirname(STATE), exist_ok=True)
+    with open(STATE, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    sway(lines[-1])
+
+
+def only(ext):
+    sway(f"output {ext['name']} enable")
+    if not outputs().get(ext["name"], {}).get("active"):
+        return
+    for name in outputs().keys() - {ext["name"]}:
+        sway(f"output {name} disable")
+    # bring the laptop back when ext is unplugged, or the session goes dark
+    with subprocess.Popen(
+        ["swaymsg", "-mt", "subscribe", '["output"]'], stdout=subprocess.PIPE
+    ) as p:
+        for _ in p.stdout:
+            if session().get("only") != ext["name"]:
+                p.terminate()
+                break
+            if ext["name"] not in outputs():
+                sway(f"output {LAPTOP} enable")
+                p.terminate()
+                break
+
+
+def menu(prompt, entries):
+    choice = subprocess.run(
+        ["rofi", "-dmenu", "-i", "-p", prompt],
+        input="\n".join(entries),
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return entries.get(choice)
+
+
+def main():
+    if "--before-sleep" in sys.argv:
+        before_sleep()
+        return
+    if "--after-resume" in sys.argv:
+        after_resume()
+        return
+
+    outs = outputs()
+    lap = outs.pop(LAPTOP)
+    if not outs:
+        return
+
+    # first menu: which monitor (skipped when only one is plugged in)
+    monitors = {(e["model"] if e["model"] != "Unknown" else e["name"]): e for e in outs.values()}
+    monitors["Laptop screen only"] = None
+    if len(outs) == 1:
+        name, ext = next(iter(monitors.items()))
+    else:
+        name = menu("Monitor", {m: m for m in monitors})
+        if name is None:
+            return
+        ext = monitors[name]
+    if ext is None:
+        subprocess.run(["pkill", "-x", "wl-mirror"])
+        save_session({"only": LAPTOP})
+        sway(f"output {LAPTOP} enable")
+        for name in outs:
+            sway(f"output {name} disable")
+        return
+
+    # second menu: what to do with it
+    actions = [
+        "Right of laptop",
+        "Left of laptop",
+        "Above laptop",
+        "Mirror laptop",
+        "Only this monitor (laptop screen off)",
+        "Only laptop screen (this monitor off)",
+    ]
+    action = menu(name, {item: item for item in actions})
+    if action is None:
+        return
+
+    subprocess.run(["pkill", "-x", "wl-mirror"])
+    data = {}
+    if action == "Mirror laptop":
+        data["mirror"] = ext["name"]
+    if action == "Only this monitor (laptop screen off)":
+        data["only"] = ext["name"]
+    save_session(data)
+
+    if action in actions[:3]:
+        sway(f"output {LAPTOP} enable")
+        sway(f"output {ext['name']} enable")
+        current = outputs()
+        place(
+            current[ext["name"]], current[LAPTOP], ("right", "left", "above")[actions.index(action)]
+        )
+    elif action == "Mirror laptop":
+        sway(f"output {LAPTOP} enable")
+        sway(f"output {ext['name']} enable")
+        subprocess.Popen(
+            ["wl-mirror", "--fullscreen-output", ext["name"], LAPTOP], start_new_session=True
+        )
+    elif action == "Only this monitor (laptop screen off)":
+        only(ext)
+    else:
+        sway(f"output {LAPTOP} enable")
+        sway(f"output {ext['name']} disable")
+
+
+if __name__ == "__main__":
+    main()
