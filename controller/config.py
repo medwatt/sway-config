@@ -141,6 +141,12 @@ WORKSPACES = Workspaces(
 )
 # >>>
 
+# tiling <<<
+
+# Width of the first column, in percent, when a workspace gets a second column.
+FIRST_COLUMN_WIDTH = 55
+# >>>
+
 # scratchpads <<<
 SCRATCHPADS = Scratchpads(
     rule="floating enable, resize set 1000 px 800 px, move position center, border pixel 5",

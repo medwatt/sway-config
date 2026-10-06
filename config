@@ -165,6 +165,7 @@ for_window [app_id="nvim_float"] floating enable, resize set 1200 300, move posi
 # others
 for_window [title="Scid:\s.*$"] floating enable, move position center
 for_window [class="Tk"] floating enable
+for_window [class="feh"] floating enable, move position center
 
 # >>>
 

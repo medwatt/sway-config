@@ -8,7 +8,7 @@ auto_tiling=False (config.py) and ones arranged by hand are left alone.
 # imports <<<
 import logging
 
-from config import WORKSPACES
+from config import FIRST_COLUMN_WIDTH, WORKSPACES
 # >>>
 
 NO_AUTO_TILING = {name for name, ws in WORKSPACES.entries.items() if not ws.auto_tiling}
@@ -75,7 +75,13 @@ def plan_repair(ws):
     for col in cols:
         if is_window(col):
             # A bare window as a column: give it its vertical container.
-            return [(col.id, "split v")]
+            fixes = [(col.id, "split v")]
+            # Only runs when a column is new, so later manual resizes are kept.
+            # sway applies the width to the column even if cols[0] is the
+            # window being wrapped here.
+            if len(cols) == 2:
+                fixes.append((cols[0].id, f"resize set width {FIRST_COLUMN_WIDTH} ppt"))
+            return fixes
     for col in cols:
         if len(col.nodes) == 1 and col.layout != "splitv":
             # On an only child this changes the column's layout, no new wrapper.
