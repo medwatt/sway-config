@@ -114,7 +114,7 @@ WORKSPACES = Workspaces(
             launch="vmware",
         ),
         "V": Workspace(
-            windows=["vlc", "smplayer"],
+            windows=["vlc", "mpv"],
             tabbed=True,
             auto_tiling=False,
         ),
@@ -125,7 +125,7 @@ WORKSPACES = Workspaces(
         ),
         "X": Workspace(
             windows=["mogan", "Mogan", "moganstem", "MoganResearch", "texmacs", "texmacs.bin", "Texmacs.bin"],
-            launch="mogan",
+            launch="texmaxuv",
             tabbed=True,
             auto_tiling=False,
         ),
@@ -170,7 +170,7 @@ FOLDER_PICKER = FolderPicker(
         "l": "~/.local/",
         "r": "~/Recordings/",
         "v": "~/Videos/",
-        "w": "~/Writing/texmacs",
+        "w": "~/Writing/",
     },
     workspace="E",
     open_folder="dolphin --select {marker}",

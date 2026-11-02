@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pick a course/series directory, play everything under it in order in smplayer.
+# Pick a course/series directory, play everything under it in order in mpv.
 
 trap "" HUP
 
@@ -17,4 +17,4 @@ if ((${#files[@]} == 0)); then
 fi
 
 # detached: the kitty window closes the moment we return
-setsid smplayer "${files[@]}" >/dev/null 2>&1 </dev/null &
+setsid mpv "${files[@]}" >/dev/null 2>&1 </dev/null &

@@ -30,7 +30,8 @@ input type:touchpad tap enabled
 # output eDP-1 color_profile icc ~/.config/sway/assets/NV156FHM-N61.icc
 exec ~/.config/sway/scripts/run-unit wl-vcgt ~/.config/sway/tools/wl-vcgt/wl-vcgt --output eDP-1 ~/.config/sway/assets/NV156FHM-N61.icc
 
-# pin the laptop at 0,0; unconfigured outputs are auto-placed to its right.
+# laptop at 0,0 by default; display-mode may move it so no output has negative x/y
+# (XWayland apps ignore clicks there). Unconfigured outputs are auto-placed to its right.
 # Super+F7 (scripts/display-mode) saves per-monitor placements to the include.
 output eDP-1 pos 0 0
 include ~/.local/state/sway/outputs
@@ -132,7 +133,7 @@ for_window [class="URxvt"] floating enable, move position center
 
 # tabbed apps; apps with their own workspace: tabbed=True in controller/config.py
 for_window [class="kicad|KiCad"] layout tabbed
-for_window [class="ChessPuzzles|ChessPuzzlesBoardVision|ChessPuzzlesPgnViewer"] layout tabbed
+for_window [class="Chessworkbench|ChessWorkbenchVisualization|ChessWorkbenchRepertoire|ChessWorkbenchBoardVision"] layout tabbed
 
 # cadence
 for_window [class="virtuoso"] floating enable, move position center
@@ -255,9 +256,9 @@ bindsym $super+slash exec $term_app kitty_fzf --title 'File Search' -e ~/.config
 bindsym $super+$shift+slash exec $term_app kitty_vid --title 'Video Search' -e ~/.config/sway/scripts/vid-menu
 
 # screenshots: region / full screen after 1s to clipboard, region in a floating window
-bindsym Print exec grim -g "$(slurp)" - | wl-copy -t image/png
-bindsym $shift+Print exec sleep 1 && grim - | wl-copy -t image/png
-bindsym $ctrl+Print exec ~/.config/sway/scripts/floating-screenshot
+bindsym Print exec ~/.config/sway/scripts/floating-screenshot
+bindsym $shift+Print exec grim -g "$(slurp)" - | wl-copy -t image/png
+bindsym $ctrl+Print exec sleep 1 && grim - | wl-copy -t image/png
 
 # monitors: place, mirror, switch off (scripts/display-mode)
 bindsym $super+F7 exec ~/.config/sway/scripts/display-mode

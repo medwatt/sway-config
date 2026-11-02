@@ -82,23 +82,31 @@ def after_resume():
 
 
 def place(ext, lap, where):
-    """Centre ext beside/above the laptop (at 0,0), save it for next time, apply it now."""
+    """Centre ext beside/above the laptop, save it for next time, apply it now.
+    The layout is shifted so nothing sits at negative x/y: X11 apps under
+    XWayland (e.g. TigerVNC's FLTK dialogs) ignore clicks there."""
     e, l = ext["rect"], lap["rect"]
     x, y = {
         "right": (l["width"], (l["height"] - e["height"]) // 2),
         "left": (-e["width"], (l["height"] - e["height"]) // 2),
         "above": ((l["width"] - e["width"]) // 2, -e["height"]),
     }[where]
+    dx, dy = -min(x, 0), -min(y, 0)
     monitor = f'"{ident(ext)}"'
+    # ponytail: one laptop position for all saved monitors; the last placement wins
     try:
-        lines = [s for s in open(STATE).read().splitlines() if monitor not in s]
+        lines = [
+            s for s in open(STATE).read().splitlines() if monitor not in s and LAPTOP not in s
+        ]
     except FileNotFoundError:
         lines = []
-    lines.append(f"output {monitor} pos {x} {y}")
+    new = [f"output {LAPTOP} pos {dx} {dy}", f"output {monitor} pos {x + dx} {y + dy}"]
+    lines += new
     os.makedirs(os.path.dirname(STATE), exist_ok=True)
     with open(STATE, "w") as f:
         f.write("\n".join(lines) + "\n")
-    sway(lines[-1])
+    for cmd in new:
+        sway(cmd)
 
 
 def only(ext):
